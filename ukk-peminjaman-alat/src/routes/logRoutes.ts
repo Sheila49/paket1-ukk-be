@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { LaporanController } from '../controllers/laporanController';
+import { LogController } from '../controllers/logController';
 import { authenticate } from '../middlewares/auth';
 import { checkRole } from '../middlewares/roleCheck';
 
@@ -8,7 +8,6 @@ const router = Router();
 router.use(authenticate);
 router.use(checkRole('admin'));
 
-router.get('/peminjaman/pdf', LaporanController.downloadPDF);
-router.get('/peminjaman/excel', LaporanController.downloadExcel);
+router.get('/', LogController.getAll);
 
 export default router;

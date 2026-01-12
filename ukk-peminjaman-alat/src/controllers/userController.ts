@@ -1,24 +1,23 @@
 import { Request, Response } from 'express';
-import Alat from '../models/Alat';
-import Kategori from '../models/Kategori';
+import bcrypt from 'bcrypt';
+import User from '../models/User';
 import { LogService } from '../services/logService';
 
-export class AlatController {
+export class UserController {
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const { page = 1, limit = 10, kategori_id, kondisi } = req.query;
+      const { page = 1, limit = 10, role } = req.query;
       const offset = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
-      if (kategori_id) where.kategori_id = kategori_id;
-      if (kondisi) where.kondisi = kondisi;
+      if (role) where.role = role;
 
-      const { count, rows } = await Alat.findAndCountAll({
+      const { count, rows } = await User.findAndCountAll({
         where,
-        include: [{ model: Kategori, as: 'kategori' }],
+        attributes: { exclude: ['password'] },
         limit: Number(limit),
         offset,
-        order: [['nama_alat', 'ASC']],
+        order: [['created_at', 'DESC']],
       });
 
       res.json({
@@ -41,16 +40,16 @@ export class AlatController {
       // ✅ normalize id
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-      const alat = await Alat.findByPk(id, {
-        include: [{ model: Kategori, as: 'kategori' }],
+      const user = await User.findByPk(id, {
+        attributes: { exclude: ['password'] },
       });
 
-      if (!alat) {
-        res.status(404).json({ message: 'Alat tidak ditemukan' });
+      if (!user) {
+        res.status(404).json({ message: 'User tidak ditemukan' });
         return;
       }
 
-      res.json({ success: true, data: alat });
+      res.json({ success: true, data: user });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -58,25 +57,34 @@ export class AlatController {
 
   static async create(req: Request, res: Response): Promise<void> {
     try {
-      const alat = await Alat.create(req.body);
+      const { password, ...userData } = req.body;
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await User.create({
+        ...userData,
+        password: hashedPassword,
+      });
 
       await LogService.createLog(
         req.user!.id,
         'CREATE',
-        'alat',
-        alat.id,
-        `Alat baru: ${alat.nama_alat}`,
+        'users',
+        user.id,
+        `User baru dibuat: ${user.username}`,
         req
       );
 
+      const userResponse = user.toJSON();
+      delete (userResponse as any).password;
+
       res.status(201).json({
         success: true,
-        message: 'Alat berhasil dibuat',
-        data: alat,
+        message: 'User berhasil dibuat',
+        data: userResponse,
       });
     } catch (error: any) {
       if (error.name === 'SequelizeUniqueConstraintError') {
-        res.status(400).json({ message: 'Kode alat sudah digunakan' });
+        res.status(400).json({ message: 'Username atau email sudah digunakan' });
         return;
       }
       res.status(500).json({ message: error.message });
@@ -87,28 +95,37 @@ export class AlatController {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-      const alat = await Alat.findByPk(id);
+      const user = await User.findByPk(id);
 
-      if (!alat) {
-        res.status(404).json({ message: 'Alat tidak ditemukan' });
+      if (!user) {
+        res.status(404).json({ message: 'User tidak ditemukan' });
         return;
       }
 
-      await alat.update(req.body);
+      const { password, ...updateData } = req.body;
+      
+      if (password) {
+        updateData.password = await bcrypt.hash(password, 10);
+      }
+
+      await user.update(updateData);
 
       await LogService.createLog(
         req.user!.id,
         'UPDATE',
-        'alat',
-        alat.id,
-        `Alat diupdate: ${alat.nama_alat}`,
+        'users',
+        user.id,
+        `User diupdate: ${user.username}`,
         req
       );
 
+      const userResponse = user.toJSON();
+      delete (userResponse as any).password;
+
       res.json({
         success: true,
-        message: 'Alat berhasil diupdate',
-        data: alat,
+        message: 'User berhasil diupdate',
+        data: userResponse,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -119,25 +136,25 @@ export class AlatController {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-      const alat = await Alat.findByPk(id);
+      const user = await User.findByPk(id);
 
-      if (!alat) {
-        res.status(404).json({ message: 'Alat tidak ditemukan' });
+      if (!user) {
+        res.status(404).json({ message: 'User tidak ditemukan' });
         return;
       }
 
       await LogService.createLog(
         req.user!.id,
         'DELETE',
-        'alat',
-        alat.id,
-        `Alat dihapus: ${alat.nama_alat}`,
+        'users',
+        user.id,
+        `User dihapus: ${user.username}`,
         req
       );
 
-      await alat.destroy();
+      await user.destroy();
 
-      res.json({ success: true, message: 'Alat berhasil dihapus' });
+      res.json({ success: true, message: 'User berhasil dihapus' });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
