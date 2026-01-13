@@ -30,7 +30,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
@@ -62,11 +62,11 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
 
-    // Sync models (development only)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      console.log('✅ Database models synchronized');
-    }
+    // // Sync models (development only)
+    // if (process.env.NODE_ENV === 'development') {
+    //   await sequelize.sync({ alter: true });
+    //   console.log('✅ Database models synchronized');
+    // }
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
