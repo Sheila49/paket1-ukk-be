@@ -14,7 +14,7 @@ const sequelize = new Sequelize({
   pool: {
     max: 5,
     min: 0,
-    acquire: 30000,
+    acquire: 30020,
     idle: 10000
   }
 });

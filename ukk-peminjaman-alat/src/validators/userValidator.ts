@@ -78,3 +78,40 @@ export const loginSchema = Joi.object({
 })
   .xor('username', 'email')
   .options({ abortEarly: false, stripUnknown: true });
+
+// ✅ Tambahan untuk register
+export const registerSchema = Joi.object({
+  username: Joi.string()
+    .trim()
+    .pattern(/^[a-zA-Z0-9_.-]+$/)
+    .min(3)
+    .max(50)
+    .required(),
+  email: Joi.string()
+    .trim()
+    .lowercase()
+    .email()
+    .required(),
+  password: Joi.string()
+    .min(6)
+    .max(128)
+    .required(),
+  nama_lengkap: Joi.string()
+    .trim()
+    .min(3)
+    .max(100)
+    .required(),
+  // role opsional, default bisa di-set di backend
+  role: Joi.string()
+    .valid('admin', 'petugas', 'peminjam')
+    .optional(),
+  no_telepon: Joi.string()
+    .trim()
+    .pattern(/^[0-9+\-()\s]+$/)
+    .max(20)
+    .optional(),
+  alamat: Joi.string()
+    .trim()
+    .max(255)
+    .optional(),
+}).options({ abortEarly: false, stripUnknown: true });

@@ -21,16 +21,28 @@ import { errorHandler } from './middlewares/errorHandler';
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
+
+// ✅ Ambil daftar origin dari .env
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
 
 // Middlewares
 app.use(helmet());
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // izinkan request tanpa origin (misalnya dari curl/postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(morgan('dev'));
-app.use(express.json()); 
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
