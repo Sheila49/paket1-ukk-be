@@ -74,6 +74,42 @@ export class PeminjamanController {
     }
   }
 
+  static async getByUser(req: Request, res: Response): Promise<void> {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
+    const { page = 1, limit = 10, status } = req.query
+    const offset = (Number(page) - 1) * Number(limit)
+
+    const where: any = { user_id: Number(id) }
+    if (status) where.status = status
+
+    const { count, rows } = await Peminjaman.findAndCountAll({
+      where,
+      include: [
+        { model: User, as: 'peminjam', attributes: ['id', 'username', 'nama_lengkap'] },
+        { model: Alat, as: 'alat' },
+        { model: User, as: 'penyetuju', attributes: ['id', 'username', 'nama_lengkap'] },
+      ],
+      limit: Number(limit),
+      offset,
+      order: [['created_at', 'DESC']],
+    })
+
+    res.json({
+      success: true,
+      data: rows,
+      pagination: {
+        total: count,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(count / Number(limit)),
+      },
+    })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message })
+  }
+}
+
   static async create(req: Request, res: Response): Promise<void> {
     const t = await sequelize.transaction();
     

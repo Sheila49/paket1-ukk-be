@@ -30,6 +30,25 @@ export class PengembalianController {
         order: [['created_at', 'DESC']],
       });
 
+        if (count === 0) {
+        // ✅ log ke console
+        console.log("Belum ada data pengembalian di database");
+
+        // ✅ kirim response khusus
+        res.json({
+          success: true,
+          message: "Belum ada data pengembalian",
+          data: [],
+          pagination: {
+            total: 0,
+            page: Number(page),
+            limit: Number(limit),
+            totalPages: 0,
+          },
+        });
+        return;
+      }
+
       res.json({
         success: true,
         data: rows,
