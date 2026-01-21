@@ -153,13 +153,21 @@ export class PeminjamanController {
         req
       );
 
-      await t.commit();
+      await t.commit()
 
-      res.status(201).json({
-        success: true,
-        message: 'Peminjaman berhasil diajukan',
-        data: peminjaman,
-      });
+const updated = await Peminjaman.findByPk(peminjaman.id, {
+  include: [
+    { model: User, as: 'peminjam', attributes: ['id', 'username', 'nama_lengkap'] },
+    { model: Alat, as: 'alat' },
+    { model: User, as: 'penyetuju', attributes: ['id', 'username', 'nama_lengkap'] },
+  ],
+})
+
+res.json({
+  success: true,
+  message: 'Peminjaman berhasil disetujui',
+  data: updated,
+})
     } catch (error: any) {
       await t.rollback();
       res.status(500).json({ message: error.message });
