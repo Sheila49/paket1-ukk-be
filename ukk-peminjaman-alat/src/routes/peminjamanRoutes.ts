@@ -9,14 +9,20 @@ const router = Router();
 
 router.use(authenticate);
 
+// GET
 router.get('/', PeminjamanController.getAll);
+router.get('/user', checkRole('peminjam'), PeminjamanController.getByUser);
 router.get('/:id', PeminjamanController.getById);
 
-router.get('/user/:id', checkRole('peminjam'), PeminjamanController.getByUser)
-
+// CREATE
 router.post('/', checkRole('peminjam'), validate(createPeminjamanSchema), PeminjamanController.create);
 
-router.put('/:id/approve', checkRole('petugas', 'admin'), validate(approvePeminjamanSchema), PeminjamanController.approve);
-router.put('/:id/reject', checkRole('petugas', 'admin'), validate(approvePeminjamanSchema), PeminjamanController.reject);
+// APPROVE / REJECT
+router.patch('/:id/approve', checkRole('petugas', 'admin'), validate(approvePeminjamanSchema), PeminjamanController.approve);
+router.patch('/:id/reject', checkRole('petugas', 'admin'), validate(approvePeminjamanSchema), PeminjamanController.reject);
+
+// UPDATE / DELETE (opsional, kalau memang dipakai)
+router.put('/:id', checkRole('petugas', 'admin'), PeminjamanController.update);
+router.delete('/:id', checkRole('petugas', 'admin'), PeminjamanController.delete);
 
 export default router;

@@ -12,11 +12,9 @@ export class PeminjamanController {
       const offset = (Number(page) - 1) * Number(limit);
 
       const where: any = {};
-      
       if (req.user!.role === 'peminjam') {
         where.user_id = req.user!.id;
       }
-      
       if (status) where.status = status;
 
       const { count, rows } = await Peminjaman.findAndCountAll({
@@ -74,50 +72,49 @@ export class PeminjamanController {
     }
   }
 
-  static async getByUser(req: Request, res: Response): Promise<void> {
-  try {
-    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
-    const { page = 1, limit = 10, status } = req.query
-    const offset = (Number(page) - 1) * Number(limit)
+    static async getByUser(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id // ambil dari token, bukan dari URL
+      const { page = 1, limit = 10, status } = req.query
+      const offset = (Number(page) - 1) * Number(limit)
 
-    const where: any = { user_id: Number(id) }
-    if (status) where.status = status
+      const where: any = { user_id: userId }
+      if (status) where.status = status
 
-    const { count, rows } = await Peminjaman.findAndCountAll({
-      where,
-      include: [
-        { model: User, as: 'peminjam', attributes: ['id', 'username', 'nama_lengkap'] },
-        { model: Alat, as: 'alat' },
-        { model: User, as: 'penyetuju', attributes: ['id', 'username', 'nama_lengkap'] },
-      ],
-      limit: Number(limit),
-      offset,
-      order: [['created_at', 'DESC']],
-    })
-
-    res.json({
-      success: true,
-      data: rows,
-      pagination: {
-        total: count,
-        page: Number(page),
+      const { count, rows } = await Peminjaman.findAndCountAll({
+        where,
+        include: [
+          { model: User, as: 'peminjam', attributes: ['id', 'username', 'nama_lengkap'] },
+          { model: Alat, as: 'alat' },
+          { model: User, as: 'penyetuju', attributes: ['id', 'username', 'nama_lengkap'] },
+        ],
         limit: Number(limit),
-        totalPages: Math.ceil(count / Number(limit)),
-      },
-    })
-  } catch (error: any) {
-    res.status(500).json({ message: error.message })
+        offset,
+        order: [['created_at', 'DESC']],
+      })
+
+      res.json({
+        success: true,
+        data: rows,
+        pagination: {
+          total: count,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(count / Number(limit)),
+        },
+      })
+    } catch (error: any) {
+      console.error("getByUser error:", error)
+      res.status(500).json({ message: error.message })
+    }
   }
-}
 
   static async create(req: Request, res: Response): Promise<void> {
     const t = await sequelize.transaction();
-    
     try {
       const { alat_id, jumlah_pinjam, tanggal_kembali_rencana, keperluan } = req.body;
 
       const alat = await Alat.findByPk(alat_id);
-      
       if (!alat) {
         await t.rollback();
         res.status(404).json({ message: 'Alat tidak ditemukan' });
@@ -126,9 +123,7 @@ export class PeminjamanController {
 
       if (alat.jumlah_tersedia < jumlah_pinjam) {
         await t.rollback();
-        res.status(400).json({ 
-          message: `Stok tidak cukup. Tersedia: ${alat.jumlah_tersedia}` 
-        });
+        res.status(400).json({ message: `Stok tidak cukup. Tersedia: ${alat.jumlah_tersedia}` });
         return;
       }
 
@@ -153,21 +148,17 @@ export class PeminjamanController {
         req
       );
 
-      await t.commit()
+      await t.commit();
 
-const updated = await Peminjaman.findByPk(peminjaman.id, {
-  include: [
-    { model: User, as: 'peminjam', attributes: ['id', 'username', 'nama_lengkap'] },
-    { model: Alat, as: 'alat' },
-    { model: User, as: 'penyetuju', attributes: ['id', 'username', 'nama_lengkap'] },
-  ],
-})
+      const updated = await Peminjaman.findByPk(peminjaman.id, {
+        include: [
+          { model: User, as: 'peminjam', attributes: ['id', 'username', 'nama_lengkap'] },
+          { model: Alat, as: 'alat' },
+          { model: User, as: 'penyetuju', attributes: ['id', 'username', 'nama_lengkap'] },
+        ],
+      });
 
-res.json({
-  success: true,
-  message: 'Peminjaman berhasil disetujui',
-  data: updated,
-})
+      res.json({ success: true, message: 'Peminjaman berhasil diajukan', data: updated });
     } catch (error: any) {
       await t.rollback();
       res.status(500).json({ message: error.message });
@@ -176,13 +167,9 @@ res.json({
 
   static async approve(req: Request, res: Response): Promise<void> {
     const t = await sequelize.transaction();
-    
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-      const peminjaman = await Peminjaman.findByPk(id, {
-        include: [{ model: Alat, as: 'alat' }],
-      });
+      const peminjaman = await Peminjaman.findByPk(id, { include: [{ model: Alat, as: 'alat' }] });
 
       if (!peminjaman) {
         await t.rollback();
@@ -197,18 +184,13 @@ res.json({
       }
 
       const alat = peminjaman.alat;
-      
       if (alat.jumlah_tersedia < peminjaman.jumlah_pinjam) {
         await t.rollback();
-        res.status(400).json({ 
-          message: `Stok tidak cukup. Tersedia: ${alat.jumlah_tersedia}` 
-        });
+        res.status(400).json({ message: `Stok tidak cukup. Tersedia: ${alat.jumlah_tersedia}` });
         return;
       }
 
-      await alat.update({
-        jumlah_tersedia: alat.jumlah_tersedia - peminjaman.jumlah_pinjam,
-      }, { transaction: t });
+      await alat.update({ jumlah_tersedia: alat.jumlah_tersedia - peminjaman.jumlah_pinjam }, { transaction: t });
 
       await peminjaman.update({
         status: 'disetujui',
@@ -228,14 +210,10 @@ res.json({
       );
 
       await t.commit();
-
-      res.json({
-        success: true,
-        message: 'Peminjaman berhasil disetujui',
-        data: peminjaman,
-      });
+      res.json({ success: true, message: 'Peminjaman berhasil disetujui', data: peminjaman });
     } catch (error: any) {
       await t.rollback();
+      console.error("Approve error detail:", error); // tambahkan ini
       res.status(500).json({ message: error.message });
     }
   }
@@ -243,7 +221,6 @@ res.json({
   static async reject(req: Request, res: Response): Promise<void> {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
       const peminjaman = await Peminjaman.findByPk(id);
 
       if (!peminjaman) {
@@ -276,6 +253,67 @@ res.json({
         success: true,
         message: 'Peminjaman ditolak',
         data: peminjaman,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  static async update(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const peminjaman = await Peminjaman.findByPk(id);
+
+      if (!peminjaman) {
+        res.status(404).json({ message: 'Peminjaman tidak ditemukan' });
+        return;
+      }
+
+      await peminjaman.update(req.body);
+
+      await LogService.createLog(
+        req.user!.id,
+        'UPDATE',
+        'peminjaman',
+        peminjaman.id,
+        `Peminjaman diupdate oleh ${req.user!.username}`,
+        req
+      );
+
+      res.json({
+        success: true,
+        message: 'Peminjaman berhasil diupdate',
+        data: peminjaman,
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  static async delete(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const peminjaman = await Peminjaman.findByPk(id);
+
+      if (!peminjaman) {
+        res.status(404).json({ message: 'Peminjaman tidak ditemukan' });
+        return;
+      }
+
+      await peminjaman.destroy();
+
+      await LogService.createLog(
+        req.user!.id,
+        'DELETE',
+        'peminjaman',
+        Number(id),
+        `Peminjaman dihapus oleh ${req.user!.username}`,
+        req
+      );
+
+      res.json({
+        success: true,
+        message: 'Peminjaman berhasil dihapus',
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

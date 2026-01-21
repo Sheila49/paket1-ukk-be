@@ -9,7 +9,7 @@ export const createPeminjamanSchema = Joi.object({
 
 export const approvePeminjamanSchema = Joi.object({
   catatan_persetujuan: Joi.string().optional(),
-});
+}).unknown(true); // Allow other fields like req.user
 
 export const createPengembalianSchema = Joi.object({
   peminjaman_id: Joi.number().integer().required(),
