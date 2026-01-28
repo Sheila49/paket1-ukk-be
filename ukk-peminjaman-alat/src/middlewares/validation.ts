@@ -4,13 +4,14 @@ import Joi from 'joi';
 export const validate = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body, { abortEarly: false });
-    
+
     if (error) {
       const errors = error.details.map(detail => ({
         field: detail.path.join('.'),
         message: detail.message,
       }));
-      
+
+      // kirim response yang jelas ke frontend
       res.status(400).json({
         success: false,
         message: 'Validasi gagal',

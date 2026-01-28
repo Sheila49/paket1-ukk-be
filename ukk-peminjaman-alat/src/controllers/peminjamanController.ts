@@ -166,98 +166,110 @@ export class PeminjamanController {
   }
 
   static async approve(req: Request, res: Response): Promise<void> {
-    const t = await sequelize.transaction();
-    try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const peminjaman = await Peminjaman.findByPk(id, { include: [{ model: Alat, as: 'alat' }] });
+  const t = await sequelize.transaction()
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
+    const peminjaman = await Peminjaman.findByPk(id, { include: [{ model: Alat, as: 'alat' }] })
 
-      if (!peminjaman) {
-        await t.rollback();
-        res.status(404).json({ message: 'Peminjaman tidak ditemukan' });
-        return;
-      }
-
-      if (peminjaman.status !== 'diajukan') {
-        await t.rollback();
-        res.status(400).json({ message: 'Peminjaman sudah diproses' });
-        return;
-      }
-
-      const alat = peminjaman.alat;
-      if (alat.jumlah_tersedia < peminjaman.jumlah_pinjam) {
-        await t.rollback();
-        res.status(400).json({ message: `Stok tidak cukup. Tersedia: ${alat.jumlah_tersedia}` });
-        return;
-      }
-
-      await alat.update({ jumlah_tersedia: alat.jumlah_tersedia - peminjaman.jumlah_pinjam }, { transaction: t });
-
-      await peminjaman.update({
-        status: 'disetujui',
-        disetujui_oleh: req.user!.id,
-        tanggal_persetujuan: new Date(),
-        tanggal_pinjam: new Date(),
-        catatan_persetujuan: req.body.catatan_persetujuan,
-      }, { transaction: t });
-
-      await LogService.createLog(
-        req.user!.id,
-        'APPROVE',
-        'peminjaman',
-        peminjaman.id,
-        `Peminjaman disetujui oleh ${req.user!.username}`,
-        req
-      );
-
-      await t.commit();
-      res.json({ success: true, message: 'Peminjaman berhasil disetujui', data: peminjaman });
-    } catch (error: any) {
-      await t.rollback();
-      console.error("Approve error detail:", error); // tambahkan ini
-      res.status(500).json({ message: error.message });
+    if (!req.user) {
+      await t.rollback()
+       res.status(401).json({ message: "User tidak terautentikasi" })
+       return
     }
+    if (!peminjaman) {
+      await t.rollback()
+       res.status(404).json({ message: "Peminjaman tidak ditemukan" })
+       return
+    }
+    if (!peminjaman.alat) {
+      await t.rollback()
+       res.status(400).json({ message: "Data alat tidak ditemukan dalam relasi" })
+       return
+    }
+    if (peminjaman.status !== "diajukan") {
+      await t.rollback()
+       res.status(400).json({ message: "Peminjaman sudah diproses" })
+       return
+    }
+
+    const alat = peminjaman.alat
+    if (alat.jumlah_tersedia < peminjaman.jumlah_pinjam) {
+      await t.rollback()
+       res.status(400).json({ message: `Stok tidak cukup. Tersedia: ${alat.jumlah_tersedia}` })
+    }
+
+    await alat.update({ jumlah_tersedia: alat.jumlah_tersedia - peminjaman.jumlah_pinjam }, { transaction: t })
+
+    // ✅ gunakan fallback untuk catatan
+    const catatan = req.body?.catatan_persetujuan || null
+
+    await peminjaman.update({
+      status: "disetujui",
+      disetujui_oleh: req.user.id,
+      tanggal_persetujuan: new Date(),
+      tanggal_pinjam: new Date(),
+      catatan_persetujuan: catatan,
+    }, { transaction: t })
+
+    await t.commit()
+    res.json({ success: true, message: "Peminjaman berhasil disetujui", data: peminjaman })
+  } catch (error: any) {
+    await t.rollback()
+    console.error("Approve error detail:", error)
+    res.status(500).json({ message: error.message })
   }
+}
 
   static async reject(req: Request, res: Response): Promise<void> {
-    try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const peminjaman = await Peminjaman.findByPk(id);
+  const t = await sequelize.transaction(); // Tambahkan transaction
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const peminjaman = await Peminjaman.findByPk(id);
 
-      if (!peminjaman) {
-        res.status(404).json({ message: 'Peminjaman tidak ditemukan' });
-        return;
-      }
-
-      if (peminjaman.status !== 'diajukan') {
-        res.status(400).json({ message: 'Peminjaman sudah diproses' });
-        return;
-      }
-
-      await peminjaman.update({
-        status: 'ditolak',
-        disetujui_oleh: req.user!.id,
-        tanggal_persetujuan: new Date(),
-        catatan_persetujuan: req.body.catatan_persetujuan,
-      });
-
-      await LogService.createLog(
-        req.user!.id,
-        'REJECT',
-        'peminjaman',
-        peminjaman.id,
-        `Peminjaman ditolak oleh ${req.user!.username}`,
-        req
-      );
-
-      res.json({
-        success: true,
-        message: 'Peminjaman ditolak',
-        data: peminjaman,
-      });
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+    if (!peminjaman) {
+      await t.rollback();
+      res.status(404).json({ message: 'Peminjaman tidak ditemukan' });
+      return;
     }
+
+    if (peminjaman.status !== 'diajukan') {
+      await t.rollback();
+      res.status(400).json({ message: 'Peminjaman sudah diproses' });
+      return;
+    }
+
+    // ✅ FIX: Handle catatan_persetujuan dengan fallback
+    const catatan = req.body?.catatan_persetujuan || null;
+
+    await peminjaman.update({
+      status: 'ditolak',
+      disetujui_oleh: req.user!.id,
+      tanggal_persetujuan: new Date(),
+      catatan_persetujuan: catatan, // Gunakan variable dengan fallback
+    }, { transaction: t });
+
+    await LogService.createLog(
+      req.user!.id,
+      'REJECT',
+      'peminjaman',
+      peminjaman.id,
+      `Peminjaman ditolak oleh ${req.user!.username}`,
+      req
+    );
+
+    await t.commit();
+
+    res.json({
+      success: true,
+      message: 'Peminjaman ditolak',
+      data: peminjaman,
+    });
+  } catch (error: any) {
+    await t.rollback();
+    console.error('Reject error:', error);
+    res.status(500).json({ message: error.message });
   }
+}
 
   static async update(req: Request, res: Response): Promise<void> {
     try {
@@ -316,6 +328,48 @@ export class PeminjamanController {
         message: 'Peminjaman berhasil dihapus',
       });
     } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+    static async setDipinjam(req: Request, res: Response): Promise<void> {
+    const t = await sequelize.transaction();
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+      const peminjaman = await Peminjaman.findByPk(id, { include: [{ model: Alat, as: 'alat' }], transaction: t });
+      if (!peminjaman) {
+        await t.rollback();
+        res.status(404).json({ message: 'Data peminjaman tidak ditemukan' });
+        return;
+      }
+
+      // hanya boleh diubah ke "dipinjam" kalau status saat ini "disetujui"
+      if (peminjaman.status !== 'disetujui') {
+        await t.rollback();
+        res.status(400).json({ message: `Status saat ini ${peminjaman.status}, hanya "disetujui" yang bisa diubah ke "dipinjam"` });
+        return;
+      }
+
+      // update status peminjaman
+      await peminjaman.update({ status: 'dipinjam', tanggal_pinjam: new Date() }, { transaction: t });
+
+      // update status alat juga
+      await peminjaman.alat.update({ status: 'dipinjam' }, { transaction: t });
+
+      // log aktivitas
+      await LogService.createLog(
+        req.user!.id,
+        'UPDATE',
+        'peminjaman',
+        peminjaman.id,
+        `Status peminjaman ${peminjaman.kode_peminjaman} diubah ke "dipinjam"`,
+        req
+      );
+
+      await t.commit();
+      res.json({ success: true, message: 'Peminjaman berhasil diubah ke status dipinjam', data: peminjaman });
+    } catch (error: any) {
+      await t.rollback();
       res.status(500).json({ message: error.message });
     }
   }

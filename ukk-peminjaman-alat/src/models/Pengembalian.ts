@@ -6,27 +6,31 @@ import User from './User';
 interface PengembalianAttributes {
   id: number;
   peminjaman_id: number;
-  tanggal_kembali_aktual?: Date;
-  kondisi_alat: 'baik' | 'rusak ringan' | 'rusak berat';
-  jumlah_dikembalikan: number;
-  keterlambatan_hari: number;
-  denda: number;
+  tanggal_kembali_aktual?: Date; // ✅ Nullable di database
+  kondisi_alat?: string; // ✅ VARCHAR, nullable di database
+  jumlah_dikembalikan: number; // ✅ HARUS ADA - ada di database!
+  keterlambatan_hari?: number; // ✅ Nullable di database
+  denda?: number; // ✅ Nullable di database
   catatan?: string;
   diterima_oleh?: number;
   created_at?: Date;
   updated_at?: Date;
 }
 
-interface PengembalianCreationAttributes extends Optional<PengembalianAttributes, 'id' | 'keterlambatan_hari' | 'denda' | 'created_at' | 'updated_at'> {}
+interface PengembalianCreationAttributes 
+  extends Optional<PengembalianAttributes, 
+    'id' | 'tanggal_kembali_aktual' | 'kondisi_alat' | 'keterlambatan_hari' | 'denda' | 'catatan' | 'diterima_oleh' | 'created_at' | 'updated_at'> {}
 
-class Pengembalian extends Model<PengembalianAttributes, PengembalianCreationAttributes> implements PengembalianAttributes {
+class Pengembalian 
+  extends Model<PengembalianAttributes, PengembalianCreationAttributes> 
+  implements PengembalianAttributes {
   public id!: number;
   public peminjaman_id!: number;
-  public tanggal_kembali_aktual!: Date;
-  public kondisi_alat!: 'baik' | 'rusak ringan' | 'rusak berat';
-  public jumlah_dikembalikan!: number;
-  public keterlambatan_hari!: number;
-  public denda!: number;
+  public tanggal_kembali_aktual?: Date;
+  public kondisi_alat?: string;
+  public jumlah_dikembalikan!: number; // ✅ REQUIRED
+  public keterlambatan_hari?: number;
+  public denda?: number;
   public catatan?: string;
   public diterima_oleh?: number;
   public readonly created_at!: Date;
@@ -35,58 +39,64 @@ class Pengembalian extends Model<PengembalianAttributes, PengembalianCreationAtt
 
 Pengembalian.init(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
+    id: { 
+      type: DataTypes.INTEGER, 
+      autoIncrement: true, 
+      primaryKey: true 
     },
-    peminjaman_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'peminjaman',
-        key: 'id',
-      },
+    peminjaman_id: { 
+      type: DataTypes.INTEGER, 
+      allowNull: false, 
+      references: { 
+        model: 'peminjaman', 
+        key: 'id' 
+      } 
     },
-    tanggal_kembali_aktual: {
+    tanggal_kembali_aktual: { 
       type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
+      allowNull: true, // ✅ Sesuai database
+      defaultValue: DataTypes.NOW 
     },
-    kondisi_alat: {
-      type: DataTypes.ENUM('baik', 'rusak ringan', 'rusak berat'),
-      defaultValue: 'baik',
+    kondisi_alat: { 
+      type: DataTypes.STRING, // ✅ VARCHAR, bukan ENUM
+      allowNull: true, // ✅ Sesuai database
+      defaultValue: 'baik' 
     },
-    jumlah_dikembalikan: {
+    jumlah_dikembalikan: { // ✅ FIELD BARU - WAJIB ADA!
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: false, // ✅ NOT NULL di database
     },
-    keterlambatan_hari: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
+    keterlambatan_hari: { 
+      type: DataTypes.INTEGER, 
+      allowNull: true, // ✅ Sesuai database
+      defaultValue: 0 
     },
-    denda: {
-      type: DataTypes.DECIMAL(10, 2),
-      defaultValue: 0,
+    denda: { 
+      type: DataTypes.DECIMAL(10, 2), 
+      allowNull: true, // ✅ Sesuai database
+      defaultValue: 0 
     },
-    catatan: {
-      type: DataTypes.TEXT,
-      allowNull: true,
+    catatan: { 
+      type: DataTypes.TEXT, 
+      allowNull: true 
     },
-    diterima_oleh: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
+    diterima_oleh: { 
+      type: DataTypes.INTEGER, 
+      allowNull: true, 
+      references: { 
+        model: 'users', 
+        key: 'id' 
+      } 
     },
-    created_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
+    created_at: { 
+      type: DataTypes.DATE, 
+      allowNull: true, // ✅ YES di database
+      defaultValue: DataTypes.NOW 
     },
-    updated_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
+    updated_at: { 
+      type: DataTypes.DATE, 
+      allowNull: true, // ✅ YES di database
+      defaultValue: DataTypes.NOW 
     },
   },
   {

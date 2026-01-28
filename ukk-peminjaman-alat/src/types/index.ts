@@ -19,6 +19,6 @@ export interface PeminjamanRequest {
 export interface PengembalianRequest {
   peminjaman_id: number;
   kondisi_alat: 'baik' | 'rusak ringan' | 'rusak berat';
-  jumlah_dikembalikan: number;
+  // jumlah_dikembalikan: number;
   catatan?: string;
 }

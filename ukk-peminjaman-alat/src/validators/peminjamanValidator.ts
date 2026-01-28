@@ -14,6 +14,6 @@ export const approvePeminjamanSchema = Joi.object({
 export const createPengembalianSchema = Joi.object({
   peminjaman_id: Joi.number().integer().required(),
   kondisi_alat: Joi.string().valid('baik', 'rusak ringan', 'rusak berat').required(),
-  jumlah_dikembalikan: Joi.number().integer().min(1).required(),
+  // jumlah_dikembalikan: Joi.number().integer().min(1).required(),
   catatan: Joi.string().optional(),
 });
